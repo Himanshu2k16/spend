@@ -5,17 +5,20 @@ import { useEffect } from "react";
 import { ExpenseSheet } from "@/modules/expenses/components/expense-sheet";
 import { BackdropFX } from "@/shared/components/backdrop-fx";
 import { BootScreen } from "@/shared/components/boot-screen";
+import { AuthScreen } from "@/shared/components/auth-screen";
 import { MobileNav } from "@/shared/components/mobile-nav";
 import { Sidebar } from "@/shared/components/sidebar";
 import { Topbar } from "@/shared/components/topbar";
 import { useUIStore } from "@/shared/store/ui-store";
-import { useExpensesStore } from "@/modules/expenses/store";
+import { useAuthStore } from "@/shared/store/auth-store";
 
 export function AppFrame({ children }: { children: React.ReactNode }) {
-  const hydrated = useExpensesStore((s) => s.hasHydrated);
+  const status = useAuthStore((s) => s.status);
+  const bootError = useAuthStore((s) => s.bootError);
+  const bumpRefresh = useAuthStore((s) => s.bumpRefresh);
   const openExpenseSheet = useUIStore((s) => s.openExpenseSheet);
 
-  // Press "N" anywhere (outside a field) to log an expense.
+  // Press "N" anywhere (outside a field) to log an expense — authed sessions only.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const target = e.target as HTMLElement | null;
@@ -28,7 +31,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             target.isContentEditable)
         )
           return;
-        openExpenseSheet();
+        if (useAuthStore.getState().status === "authed") openExpenseSheet();
       }
     }
     window.addEventListener("keydown", onKey);
@@ -40,7 +43,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
       <BackdropFX />
 
       <AnimatePresence mode="wait">
-        {hydrated ? (
+        {status === "authed" ? (
           <motion.div
             key="app"
             initial={{ opacity: 0 }}
@@ -62,12 +65,22 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
             <Sidebar />
             <MobileNav />
           </motion.div>
+        ) : status === "anon" ? (
+          <motion.div
+            key="auth"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="relative"
+          >
+            <AuthScreen />
+          </motion.div>
         ) : (
-          <BootScreen key="boot" />
+          <BootScreen key="boot" message={status === "error" ? bootError : undefined} onRetry={bumpRefresh} />
         )}
       </AnimatePresence>
 
-      <ExpenseSheet />
+      {status === "authed" && <ExpenseSheet />}
     </div>
   );
 }

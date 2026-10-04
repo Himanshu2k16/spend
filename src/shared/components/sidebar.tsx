@@ -25,7 +25,7 @@ export function Sidebar() {
   const over = budget > 0 && monthTotal > budget;
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[264px] flex-col border-r border-ink/25 bg-surface px-5 py-7 lg:flex">
+    <aside className="sidebar-rail fixed inset-y-0 left-0 z-40 hidden w-[264px] flex-col border-r border-ink/25 bg-surface px-5 py-7 lg:flex">
       <Link href="/" className="mb-9 flex items-center gap-3 px-1">
         <BrandMark className="h-10 w-10" />
         <span>

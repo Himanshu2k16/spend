@@ -57,7 +57,7 @@ export function BudgetBoard({ month, expenses }: { month: string; expenses: Expe
                 cy="70"
                 r={R}
                 fill="none"
-                stroke="rgba(33,29,22,0.14)"
+                stroke="var(--chart-track)"
                 strokeWidth="12"
               />
               <motion.circle

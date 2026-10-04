@@ -1,10 +1,8 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import type { CategoryId } from "@/modules/categories";
-import type { CurrencyCode } from "@/shared/lib/money";
-import { convert, type RateTable } from "@/shared/lib/rates";
+import type { CurrencyCode, RateTable } from "@/shared/lib/money";
+import { api } from "@/shared/lib/api";
 import type { Expense, ExpenseInput } from "./types";
-import { generateDemoExpenses } from "./utils/demo";
 
 export type BudgetMap = Partial<Record<CategoryId, number>>;
 
@@ -13,113 +11,118 @@ interface ExpensesState {
   budgets: BudgetMap;
   overallBudget: number | null;
   currency: CurrencyCode;
-  seeded: boolean;
+  /** True once the ledger has been loaded from the backend for this session. */
   hasHydrated: boolean;
-  addExpense: (input: ExpenseInput) => void;
-  updateExpense: (id: string, patch: Partial<ExpenseInput>) => void;
-  deleteExpense: (id: string) => void;
-  setBudget: (categoryId: CategoryId, amount: number | null) => void;
-  setOverallBudget: (amount: number | null) => void;
-  setCurrency: (currency: CurrencyCode) => void;
-  /** Switch display currency and re-denominate every stored amount via rates. */
-  applyCurrency: (next: CurrencyCode, table: RateTable) => void;
-  loadDemoData: () => void;
-  clearAll: () => void;
+  loadFromServer: (data: {
+    expenses: Expense[];
+    budgets: BudgetMap;
+    overallBudget: number | null;
+    currency: CurrencyCode;
+  }) => void;
   setHasHydrated: (v: boolean) => void;
+  addExpense: (input: ExpenseInput) => Promise<void>;
+  updateExpense: (id: string, patch: Partial<ExpenseInput>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
+  setBudget: (categoryId: CategoryId, amount: number | null) => Promise<void>;
+  setOverallBudget: (amount: number | null) => Promise<void>;
+  setCurrency: (currency: CurrencyCode) => Promise<void>;
+  /** Switch currency server-side: the backend re-denominates everything. */
+  applyCurrency: (next: CurrencyCode) => Promise<RateTable | null>;
+  loadDemoData: () => Promise<void>;
+  clearAll: () => Promise<void>;
 }
 
-function newId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-}
+const sorted = (list: Expense[]): Expense[] =>
+  [...list].sort((a, b) =>
+    a.date < b.date ? 1 : a.date > b.date ? -1 : b.createdAt - a.createdAt
+  );
 
-export const useExpensesStore = create<ExpensesState>()(
-  persist(
-    (set) => ({
-      expenses: [],
-      budgets: {},
-      overallBudget: null,
-      currency: "INR",
-      seeded: false,
-      hasHydrated: false,
+export const useExpensesStore = create<ExpensesState>()((set, get) => ({
+  expenses: [],
+  budgets: {},
+  overallBudget: null,
+  currency: "INR",
+  hasHydrated: false,
 
-      addExpense: (input) =>
-        set((s) => ({
-          expenses: [{ ...input, id: newId(), createdAt: Date.now() }, ...s.expenses],
-        })),
-
-      updateExpense: (id, patch) =>
-        set((s) => ({
-          expenses: s.expenses.map((e) => (e.id === id ? { ...e, ...patch } : e)),
-        })),
-
-      deleteExpense: (id) =>
-        set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id) })),
-
-      setBudget: (categoryId, amount) =>
-        set((s) => {
-          const next: BudgetMap = { ...s.budgets };
-          if (amount === null || !Number.isFinite(amount) || amount <= 0) delete next[categoryId];
-          else next[categoryId] = amount;
-          return { budgets: next };
-        }),
-
-      setOverallBudget: (amount) =>
-        set({ overallBudget: amount !== null && Number.isFinite(amount) && amount > 0 ? amount : null }),
-
-      setCurrency: (currency) => set({ currency }),
-
-      applyCurrency: (next, table) =>
-        set((s) => {
-          if (next === s.currency) return s;
-          const cv = (amount: number) =>
-            Math.round(convert(amount, s.currency, next, table) * 100) / 100;
-          return {
-            currency: next,
-            expenses: s.expenses.map((e) => ({ ...e, amount: cv(e.amount) })),
-            budgets: Object.fromEntries(
-              Object.entries(s.budgets).map(([k, v]) => [k, v != null ? cv(v) : v])
-            ) as BudgetMap,
-            overallBudget: s.overallBudget != null ? cv(s.overallBudget) : null,
-          };
-        }),
-
-      loadDemoData: () => set({ expenses: generateDemoExpenses(), seeded: true }),
-
-      clearAll: () =>
-        set({ expenses: [], budgets: {}, overallBudget: null, seeded: true }),
-
-      setHasHydrated: (v) => set({ hasHydrated: v }),
+  loadFromServer: (data) =>
+    set({
+      expenses: sorted(data.expenses),
+      budgets: data.budgets,
+      overallBudget: data.overallBudget,
+      currency: data.currency,
+      hasHydrated: true,
     }),
-    {
-      name: "spend.store.v1",
-      version: 2,
-      // v2: default currency moved to INR — start fresh rather than
-      // misreading amounts that were recorded under the old currency.
-      migrate: () => {
-        const fresh: Pick<
-          ExpensesState,
-          "expenses" | "budgets" | "overallBudget" | "currency" | "seeded"
-        > = {
-          expenses: [],
-          budgets: {},
-          overallBudget: null,
-          currency: "INR",
-          seeded: false,
-        };
-        return fresh;
-      },
-      skipHydration: true,
-      partialize: (s) => ({
-        expenses: s.expenses,
-        budgets: s.budgets,
-        overallBudget: s.overallBudget,
-        currency: s.currency,
-        seeded: s.seeded,
-      }),
-    }
-  )
-);
+
+  setHasHydrated: (v) => set({ hasHydrated: v }),
+
+  addExpense: async (input) => {
+    const created = await api.post<Expense>("/api/expenses", input);
+    set((s) => ({ expenses: sorted([created, ...s.expenses]) }));
+  },
+
+  updateExpense: async (id, patch) => {
+    const updated = await api.put<Expense>(`/api/expenses/${id}`, patch);
+    set((s) => ({
+      expenses: sorted(s.expenses.map((e) => (e.id === id ? updated : e))),
+    }));
+  },
+
+  deleteExpense: async (id) => {
+    await api.delete(`/api/expenses/${id}`);
+    set((s) => ({ expenses: s.expenses.filter((e) => e.id !== id) }));
+  },
+
+  setBudget: async (categoryId, amount) => {
+    const next: BudgetMap = { ...get().budgets };
+    if (amount === null || !Number.isFinite(amount) || amount <= 0) delete next[categoryId];
+    else next[categoryId] = amount;
+    const data = await api.put<{ budgets: BudgetMap; overallBudget: number | null }>(
+      "/api/settings/budgets",
+      { budgets: next }
+    );
+    set({ budgets: data.budgets, overallBudget: data.overallBudget });
+  },
+
+  setOverallBudget: async (amount) => {
+    const data = await api.put<{ budgets: BudgetMap; overallBudget: number | null }>(
+      "/api/settings/budgets",
+      { overallBudget: amount }
+    );
+    set({ budgets: data.budgets, overallBudget: data.overallBudget });
+  },
+
+  setCurrency: async (currency) => {
+    await api.put("/api/settings/preferences", { currency });
+    set({ currency });
+  },
+
+  applyCurrency: async (next) => {
+    const data = await api.post<{
+      currency: CurrencyCode;
+      expenses: Expense[];
+      budgets: BudgetMap;
+      overallBudget: number | null;
+      rates: RateTable;
+    }>("/api/settings/currency", { currency: next });
+    set({
+      currency: data.currency,
+      expenses: sorted(data.expenses),
+      budgets: data.budgets,
+      overallBudget: data.overallBudget,
+    });
+    return data.rates;
+  },
+
+  loadDemoData: async () => {
+    const expenses = await api.post<Expense[]>("/api/expenses/demo");
+    set({ expenses: sorted(expenses) });
+  },
+
+  clearAll: async () => {
+    await api.delete("/api/expenses");
+    set({ expenses: [], budgets: {}, overallBudget: null });
+  },
+}));
 
 /** Overall monthly budget: explicit value, or the sum of category envelopes. */
 export function totalOverallBudget(s: { budgets: BudgetMap; overallBudget: number | null }): number {

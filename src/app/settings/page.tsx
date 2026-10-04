@@ -7,7 +7,7 @@ export default function SettingsPage() {
   return (
     <div>
       <PageHeader
-        index="05"
+        index="06"
         overline="Control room"
         title="Settings"
         subtitle="Tune how Spend looks and manages your local data"

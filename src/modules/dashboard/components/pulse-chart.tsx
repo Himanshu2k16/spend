@@ -103,7 +103,7 @@ export function PulseChart({ className }: { className?: string }) {
               patternTransform="rotate(45)"
               patternUnits="userSpaceOnUse"
             >
-              <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(33,29,22,0.22)" strokeWidth="1" />
+              <line x1="0" y1="0" x2="0" y2="6" stroke="var(--hatch-ink)" strokeWidth="1" />
             </pattern>
           </defs>
 
@@ -116,15 +116,15 @@ export function PulseChart({ className }: { className?: string }) {
                   x2={W - PAD_R}
                   y1={y}
                   y2={y}
-                  stroke="rgba(33,29,22,0.3)"
+                  stroke="var(--chart-grid)"
                   strokeDasharray="1 5"
                 />
                 <text
                   x={PAD_L + 2}
                   y={y - 5}
                   fontSize="10"
-                  fill="#6f6552"
-                  fontFamily="var(--font-plex)"
+                  fill="var(--color-ink-faint)"
+                  fontFamily="var(--font-spline)"
                 >
                   {formatMoney(max * f, currency, { compact: true })}
                 </text>
@@ -208,8 +208,8 @@ export function PulseChart({ className }: { className?: string }) {
                 y={H - 8}
                 fontSize="10"
                 textAnchor="middle"
-                fill={i === data.length - 1 ? "var(--color-accent)" : "#6f6552"}
-                fontFamily="var(--font-plex)"
+                fill={i === data.length - 1 ? "var(--color-accent)" : "var(--color-ink-faint)"}
+                fontFamily="var(--font-spline)"
               >
                 {d.iso.slice(8, 10)}
               </text>

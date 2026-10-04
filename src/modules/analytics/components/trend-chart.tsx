@@ -54,7 +54,7 @@ export function TrendCard({ month, className }: { month: string; className?: str
                       "w-full max-w-[46px]",
                       isCurrent
                         ? "bg-primary"
-                        : "group-hover:bg-ink/25 [background-image:repeating-linear-gradient(45deg,rgba(33,29,22,0.28)_0_1px,transparent_1px_5px)]"
+                        : "group-hover:bg-ink/25 hatch-bar"
                     )}
                     style={{
                       height: `${Math.max(pct * 100, s.total > 0 ? 4 : 1.5)}%`,

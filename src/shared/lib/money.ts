@@ -4,6 +4,13 @@ export type CurrencyCode = string;
 /** Quick-pick codes used for offline fallback rates. */
 export const POPULAR_CURRENCIES: CurrencyCode[] = ["USD", "EUR", "GBP", "INR", "AED", "JPY"];
 
+/** Exchange-rate snapshot returned by the backend's currency switch. */
+export interface RateTable {
+  usdTo: Record<string, number>;
+  fetchedAt: number;
+  live: boolean;
+}
+
 export function currencySymbol(code: string): string {
   try {
     const parts = new Intl.NumberFormat("en", { style: "currency", currency: code }).formatToParts(0);

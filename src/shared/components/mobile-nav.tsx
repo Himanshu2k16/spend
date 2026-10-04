@@ -12,10 +12,12 @@ import { useUIStore } from "@/shared/store/ui-store";
 export function MobileNav() {
   const pathname = usePathname();
   const openExpenseSheet = useUIStore((s) => s.openExpenseSheet);
+  // Keep the tray at 5 targets: Settings stays reachable via the topbar gear.
+  const mobileItems = NAV_ITEMS.filter((item) => item.href !== "/settings");
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-40 px-3 lg:hidden"
+      className="mobile-rail fixed inset-x-0 bottom-0 z-40 px-3 lg:hidden"
       style={{ paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}
     >
       <motion.button
@@ -31,7 +33,7 @@ export function MobileNav() {
         aria-label="Primary mobile"
         className="flex items-stretch justify-between border-2 border-ink bg-surface"
       >
-        {NAV_ITEMS.map((item) => {
+        {mobileItems.map((item) => {
           const active = pathname === item.href;
           const Icon = item.icon;
           return (

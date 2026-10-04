@@ -21,7 +21,7 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        index="03"
+        index="04"
         overline="Deep dive"
         title="Analytics"
         subtitle={`Patterns and breakdowns for ${monthLabel(month)}`}

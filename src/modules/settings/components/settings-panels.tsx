@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Database, Download, ShieldCheck, Trash2, Wallet } from "lucide-react";
+import { ChevronDown, Database, Download, ShieldCheck, Trash2, Wallet } from "lucide-react";
 import { Panel, PanelHeader } from "@/shared/components/panel";
 import { Dropdown } from "@/shared/components/dropdown";
 import { ConfirmDialog } from "@/shared/components/confirm-dialog";
 import { BrandMark } from "@/shared/components/brand-mark";
 import { todayISO } from "@/shared/lib/dates";
+import { api } from "@/shared/lib/api";
 import { currencyName, currencySymbol, type CurrencyCode } from "@/shared/lib/money";
-import { getUsdRates, type RateTable } from "@/shared/lib/rates";
 import { cn } from "@/shared/lib/utils";
 import { useExpensesStore } from "@/modules/expenses/store";
 
@@ -22,27 +22,42 @@ export function SettingsPanels() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [demoDone, setDemoDone] = useState(false);
   const [converting, setConverting] = useState(false);
-  const [ratesInfo, setRatesInfo] = useState<RateTable | null>(null);
+  const [codes, setCodes] = useState<string[]>([]);
+  const [ratesInfo, setRatesInfo] = useState<{
+    usdTo: Record<string, number>;
+    live: boolean;
+    fetchedAt: number;
+  } | null>(null);
 
-  // Load the full currency list (from the free rates API) for the dropdown.
+  // Currency list + current rates come from the backend.
   useEffect(() => {
     let mounted = true;
-    getUsdRates().then((table) => {
-      if (mounted) setRatesInfo(table);
-    });
+    api
+      .get<{
+        codes: string[];
+        rates: { usdTo: Record<string, number>; live: boolean; fetchedAt: number };
+      }>("/api/settings/currencies")
+      .then((data) => {
+        if (mounted) {
+          setCodes(data.codes);
+          setRatesInfo(data.rates);
+        }
+      })
+      .catch(() => {
+        // dropdown falls back to the current currency until the API answers
+      });
     return () => {
       mounted = false;
     };
   }, []);
 
-  /** Switch currency: fetch live rates once, then re-denominate every stored amount. */
+  /** Switch currency: the backend fetches live rates and re-denominates everything. */
   async function handleCurrencyChange(next: CurrencyCode) {
     if (converting || next === currency) return;
     setConverting(true);
     try {
-      const table = await getUsdRates();
-      useExpensesStore.getState().applyCurrency(next, table);
-      setRatesInfo(table);
+      const rates = await useExpensesStore.getState().applyCurrency(next);
+      if (rates) setRatesInfo({ usdTo: rates.usdTo, live: rates.live, fetchedAt: rates.fetchedAt });
     } finally {
       setConverting(false);
     }
@@ -74,8 +89,8 @@ export function SettingsPanels() {
         <PanelHeader label="Display — currency" />
         <div className="space-y-4 p-5">
           <div>
-            <p className="label-mono mb-2">
-              Display currency — {ratesInfo ? `${ratesInfo.codes.length} available` : "loading…"}
+            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-soft">
+              Display currency — {codes.length > 0 ? `${codes.length} available` : "loading…"}
             </p>
             <Dropdown
               value={currency}
@@ -84,8 +99,8 @@ export function SettingsPanels() {
               ariaLabel="Display currency"
               emptyLabel="No currency matches"
               options={
-                ratesInfo
-                  ? ratesInfo.codes.map((code) => ({
+                codes.length > 0
+                  ? codes.map((code) => ({
                       value: code,
                       label: `${code}${currencySymbol(code) !== code ? ` ${currencySymbol(code)}` : ""}`,
                       hint: currencyName(code),

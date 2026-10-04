@@ -1,4 +1,12 @@
-import { ArrowLeftRight, ChartPie, LayoutDashboard, Settings2, Target, type LucideIcon } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ChartPie,
+  LayoutDashboard,
+  Settings2,
+  Sheet,
+  Target,
+  type LucideIcon,
+} from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -8,6 +16,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/sheet", label: "Daily Sheet", icon: Sheet },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/analytics", label: "Analytics", icon: ChartPie },
   { href: "/budgets", label: "Budgets", icon: Target },

@@ -15,7 +15,7 @@ export default function BudgetsPage() {
   return (
     <div>
       <PageHeader
-        index="04"
+        index="05"
         overline="Limits"
         title="Budgets"
         subtitle={`Monthly envelopes, paced against ${monthLabel(month)}`}

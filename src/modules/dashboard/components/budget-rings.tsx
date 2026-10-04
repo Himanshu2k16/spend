@@ -73,7 +73,7 @@ export function BudgetRings({ month, className }: { month: string; className?: s
                   cy="70"
                   r={R}
                   fill="none"
-                  stroke="rgba(33,29,22,0.14)"
+                  stroke="var(--chart-track)"
                   strokeWidth={STROKE}
                 />
                 <motion.circle

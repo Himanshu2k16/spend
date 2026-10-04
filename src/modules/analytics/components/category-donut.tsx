@@ -62,7 +62,7 @@ export function CategoryDonutCard({
                 cy={CY}
                 r={R}
                 fill="none"
-                stroke="rgba(33,29,22,0.1)"
+                stroke="var(--chart-track)"
                 strokeWidth={STROKE}
               />
               {segments.map((seg, i) => {
